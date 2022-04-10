@@ -1,0 +1,23 @@
+# data
+*.bin
+*.dat
+
+# logging
+*.err
+*.e
+*.out
+*.o
+*.log
+
+# old output
+uniprot_abstracts1.tsv
+uniprot_abstracts2.tsv
+uniprot_abstracts3.tsv
+uniprot_pmid.txt
+
+# output
+uniprot_abstracts.tsv
+uniprot_abstracts_uniq_rmempty.tsv
+
+# test
+pmid_abstracts
