@@ -18,9 +18,12 @@ uniprot_pmid.txt
 # output
 uniprot_abstracts.tsv
 uniprot_abstracts_uniq_rmempty.tsv
+output_uniq_rmempty.tsv
 uniprot_abstract.sh
 find_abstracts_multithread
 find_abstracts
 
 # test
 pmid_abstracts
+test3.tsv
+test_vecs_out.csv
