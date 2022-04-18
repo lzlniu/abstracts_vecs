@@ -1,7 +1,7 @@
 #!/home/projects/ku_00039/people/zelili/programs/miniconda2/envs/phyluce-1.7.1/bin/python
-#PBS -N vectorizer
-#PBS -e vectorizer.err
-#PBS -o vectorizer.out
+#PBS -N vectorizer2
+#PBS -e vectorizer2.err
+#PBS -o vectorizer2.out
 #PBS -l nodes=1:ppn=10
 #PBS -l mem=60gb
 #PBS -l walltime=96:00:00
@@ -40,7 +40,7 @@ biobert_tokenizer = BertTokenizer.from_pretrained('dmis-lab/biobert-base-cased-v
 sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 
 #inputf = sys.argv[1]
-inputf = '/home/projects/ku_10024/people/zelili/berter/output_uniq_rmempty.tsv'
+inputf = '/home/projects/ku_10024/people/zelili/berter/testinput.tsv'
 print('Input file:', inputf)
 uniprot_tsvs = pd.read_csv(inputf, sep='\t', header=None)
 uniprot_tsvs.columns = ["PubMed ID", "Abstract"]
@@ -113,18 +113,30 @@ def get_abstracts_mean_vec(model_name):
   #all_tensors.append(np.vstack(tensors))
   return np.mean(tensors, 0)
 
+def get_abstract_sum_vec(li, model_name):
+  if not li: return 0
+  return get_embeddings(li[0], model_name) + get_abstract_sum_vec(li[1:], model_name)
+
+def get_abstracts_sum_vec(li, model_name):
+  if not li: return 0
+  return get_abstract_sum_vec(sent_tokenizer.tokenize(li[0]), model_name)/len(sent_tokenizer.tokenize(li[0])) + get_abstracts_sum_vec(li[1:], model_name)
+
 #if __name__ == '__main__':
 #device = "cuda:0" if torch.cuda.is_available() else "cpu"
 #print(f"Using device: {device}")
 model_names = ['fasttext', 'biowordvec', 'bert', 'biobert']
 
 all_tensors = []
+#abstracts = uniprot_tsvs["Abstract"].values.tolist()
+#print(abstracts)
 #with Pool(len(model_names)) as p:
 #  all_tensors = p.map(get_abstracts_mean_vec, model_names)
 for model_name in model_names:
   all_tensors.append(get_abstracts_mean_vec(model_name))
+#for model_name in model_names:
+#  all_tensors.append(get_abstracts_sum_vec(abstracts, model_name)/len(abstracts))
 print('Output vecs:\n', all_tensors)
 
-with open("/home/projects/ku_10024/people/zelili/berter/vecs_out.csv", "w", newline="") as f:
+with open("/home/projects/ku_10024/people/zelili/berter/test_vecs_out.csv", "w", newline="") as f:
   writer = csv.writer(f)
   writer.writerows(all_tensors)

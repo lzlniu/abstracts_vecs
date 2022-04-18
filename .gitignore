@@ -25,5 +25,4 @@ find_abstracts
 
 # test
 pmid_abstracts
-test3.tsv
-test_vecs_out.csv
+test2_vecs_out.csv
