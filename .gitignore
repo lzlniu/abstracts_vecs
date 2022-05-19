@@ -16,13 +16,25 @@ uniprot_abstracts3.tsv
 uniprot_pmid.txt
 
 # output
+vecs_out.csv
 uniprot_abstracts.tsv
 uniprot_abstracts_uniq_rmempty.tsv
 output_uniq_rmempty.tsv
 uniprot_abstract.sh
 find_abstracts_multithread
 find_abstracts
+data/*.vecs
+data/*.tsv
+data/*.dists
+data/logs
+data/vecs
+data/*.err
+data/*.out
+data/*.pdf
 
 # test
+setup.py
 pmid_abstracts
+test_all_vecs_out.tsv
 test2_vecs_out.csv
+tmp_get_abstracts.sh

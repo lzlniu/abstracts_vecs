@@ -1,9 +1,9 @@
 #!/home/projects/ku_00039/people/zelili/programs/miniconda2/envs/phyluce-1.7.1/bin/python
-#PBS -N vectorizer2
-#PBS -e vectorizer2.err
-#PBS -o vectorizer2.out
-#PBS -l nodes=1:ppn=10
-#PBS -l mem=60gb
+#PBS -N vectorizer_dist
+#PBS -e vectorizer_dist.err
+#PBS -o vectorizer_dist.out
+###PBS -l nodes=1:ppn=40
+#PBS -l mem=120gb
 #PBS -l walltime=96:00:00
 
 import nltk
@@ -18,6 +18,7 @@ import torch
 #from functools import partial
 from transformers import BertTokenizer, BertModel
 from sklearn.preprocessing import LabelEncoder
+#from pandarallel import pandarallel
 
 #fasttext.util.download_model('en', if_exists='ignore') # English
 #fasttext.util.reduce_model(ft, 100)
@@ -39,11 +40,14 @@ biobert_tokenizer = BertTokenizer.from_pretrained('dmis-lab/biobert-base-cased-v
 
 sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 
-#inputf = sys.argv[1]
-inputf = '/home/projects/ku_10024/people/zelili/berter/testinput.tsv'
+inputf = sys.argv[1]
+#inputf = '/home/projects/ku_10024/people/zelili/berter/all_2021_abstracts.tsv'
+#inputf = '/home/projects/ku_10024/people/zelili/berter/testinput.tsv'
 print('Input file:', inputf)
 uniprot_tsvs = pd.read_csv(inputf, sep='\t', header=None)
-uniprot_tsvs.columns = ["PubMed ID", "Abstract"]
+uniprot_tsvs.columns = ["pmid", "abstract"]
+
+#pandarallel.initialize()
 
 def split_abstract(abstract):
   sentenses = []
@@ -108,7 +112,7 @@ def get_abstract_mean_vec(text, model_name):
 
 def get_abstracts_mean_vec(model_name):
   tensors = []
-  for text in uniprot_tsvs["Abstract"]:
+  for text in uniprot_tsvs["abstract"]:
     tensors.append(get_abstract_mean_vec(text, model_name))
   #all_tensors.append(np.vstack(tensors))
   return np.mean(tensors, 0)
@@ -121,22 +125,36 @@ def get_abstracts_sum_vec(li, model_name):
   if not li: return 0
   return get_abstract_sum_vec(sent_tokenizer.tokenize(li[0]), model_name)/len(sent_tokenizer.tokenize(li[0])) + get_abstracts_sum_vec(li[1:], model_name)
 
-#if __name__ == '__main__':
-#device = "cuda:0" if torch.cuda.is_available() else "cpu"
-#print(f"Using device: {device}")
-model_names = ['fasttext', 'biowordvec', 'bert', 'biobert']
+def parallel_tsvs(pddf, model_name):
+  pddf[model_name] = pddf.apply(lambda x: get_abstract_mean_vec(x['abstract'], model_name), axis=1)
 
-all_tensors = []
-#abstracts = uniprot_tsvs["Abstract"].values.tolist()
-#print(abstracts)
-#with Pool(len(model_names)) as p:
-#  all_tensors = p.map(get_abstracts_mean_vec, model_names)
-for model_name in model_names:
-  all_tensors.append(get_abstracts_mean_vec(model_name))
-#for model_name in model_names:
-#  all_tensors.append(get_abstracts_sum_vec(abstracts, model_name)/len(abstracts))
-print('Output vecs:\n', all_tensors)
+if __name__ == '__main__':
+  with open("/home/projects/ku_10024/people/zelili/berter/vecs_out.csv", newline="") as f:
+    spamreader = csv.reader(f)
+    mean_vecs_list = []
+    for row in spamreader:
+      mean_vecs_list.append(np.array(row).astype('float32'))
+  
+  #device = "cuda:0" if torch.cuda.is_available() else "cpu"
+  #print(f"Using device: {device}")
+  model_names = ['fasttext', 'biowordvec', 'bert', 'biobert']
+  
+  #all_tensors = []
+  #with Pool(processes=40) as pool:
+  #  pool.starmap(parallel_tsvs, [(uniprot_tsvs, 'fasttext'), (uniprot_tsvs, 'biowordvec'), (uniprot_tsvs, 'bert'), (uniprot_tsvs, 'biobert')])
+  for model_name in model_names:
+    uniprot_tsvs[model_name] = uniprot_tsvs.apply(lambda x: get_abstract_mean_vec(x['abstract'], model_name), axis=1)
+    uniprot_tsvs['dist'+model_name] = uniprot_tsvs.apply(lambda x: np.linalg.norm(x[model_name] - mean_vecs_list[model_names.index(model_name)]), axis=1)
+    #all_tensors.append(get_abstracts_mean_vec(model_name))
+  #for model_name in model_names:
+  #  all_tensors.append(get_abstracts_sum_vec(abstracts, model_name)/len(abstracts))
+  #print('Output vecs:\n', all_tensors)
+  #print(uniprot_tsvs)
+  uniprot_tsvs[['pmid', 'fasttext', 'biowordvec', 'bert', 'biobert']].to_csv(sys.argv[1]+'_vecs.tsv', sep="\t")
+  uniprot_tsvs[['pmid', 'distfasttext', 'distbiowordvec', 'distbert', 'distbiobert']].to_csv(sys.argv[1]+'_dists.tsv', sep="\t", header=False, index=False)
+  #with open("/home/projects/ku_10024/people/zelili/berter/test_vecs_out.csv", "w", newline="") as f:
+  #  writer = csv.writer(f)
+  #  writer.writerows(all_tensors)
+  
+  #pd.read_csv('.tsv', sep='\t', index_col=0)
 
-with open("/home/projects/ku_10024/people/zelili/berter/test_vecs_out.csv", "w", newline="") as f:
-  writer = csv.writer(f)
-  writer.writerows(all_tensors)
