@@ -21,14 +21,20 @@ ft = fasttext.load_model('/home/projects/ku_10024/people/zelili/berter/cc.en.300
 ftbio = fasttext.load_model('/home/projects/ku_10024/people/zelili/berter/BioWordVec_PubMed_MIMICIII_d200.bin')
 
 # Load pre-trained model (weights)
+
 bert_model = BertModel.from_pretrained('bert-base-uncased', output_hidden_states = True) #.to(device)
 biobert_model = BertModel.from_pretrained('dmis-lab/biobert-base-cased-v1.2', output_hidden_states = True)
+
 # Put the model in "evaluation" mode, meaning feed-forward operation
+
 bert_model.eval()
 biobert_model.eval()
+
 # load pre-trained tokenizer
+
 bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased') #add_special_tokens = True, return_special_tokens_mask = True
 biobert_tokenizer = BertTokenizer.from_pretrained('dmis-lab/biobert-base-cased-v1.2') #add_special_tokens = True, return_special_tokens_mask = True
+
 #marked_text = '[CLS] ' + orig_text + ' [SEP]'
 
 sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
@@ -36,9 +42,10 @@ sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 inputf = sys.argv[1]
 #inputf = '/home/projects/ku_10024/people/zelili/berter/all_2021_abstracts.tsv'
 #inputf = '/home/projects/ku_10024/people/zelili/berter/testinput.tsv'
+
 print('Input file:', inputf)
-uniprot_tsvs = pd.read_csv(inputf, sep='\t', header=None)
-uniprot_tsvs.columns = ["pmid", "abstract"]
+#uniprot_tsvs = pd.read_csv(inputf, sep='\t', header=None)
+#uniprot_tsvs.columns = ["pmid", "abstract"]
 
 #pandarallel.initialize()
 
@@ -122,12 +129,32 @@ def get_abstracts_sum_vec(li, model_name):
 def parallel_tsvs(pddf, model_name):
   pddf[model_name] = pddf.apply(lambda x: get_abstract_mean_vec(x['abstract'], model_name), axis=1)
 
+str2np = lambda str_vec: np.fromstring(str_vec.strip('][').replace('\n',''), dtype=float, sep=' ')
+
+def read_vecs(infile):
+  vecs = pd.read_csv(infile, index_col=0, sep='\t')
+  vecs['fasttext'] = vecs['fasttext'].apply(str2np)
+  vecs['biowordvec'] = vecs['biowordvec'].apply(str2np)
+  vecs['bert'] = vecs['bert'].apply(str2np)
+  vecs['biobert'] = vecs['biobert'].apply(str2np)
+  return vecs
+
 if __name__ == '__main__':
   with open("/home/projects/ku_10024/people/zelili/berter/vecs_out.csv", newline="") as f:
     spamreader = csv.reader(f)
     mean_vecs_list = []
     for row in spamreader:
       mean_vecs_list.append(np.array(row).astype('float32'))
+  
+  #with open('/home/projects/ku_10024/people/zelili/berter/data/vecs_filelist.txt', 'r') as fl:
+  #  fl_list = fl.read().split("\n")
+  #fl_list.pop()
+  
+  #tmpdf = pd.DataFrame(columns=['pmid', 'fasttext', 'biowordvec', 'bert', 'biobert'])
+  #for filename in fl_list:
+  #  tmpdf = pd.concat([tmpdf, read_vecs('/home/projects/ku_10024/people/zelili/berter/data/vecs/'+filename)])
+  
+  #tmpdf = pd.concat([tmpdf, read_vecs('/home/projects/ku_10024/people/zelili/berter/data/vecs/'+inputf+'.vecs')])
   
   #device = "cuda:0" if torch.cuda.is_available() else "cpu"
   #print(f"Using device: {device}")
@@ -139,6 +166,7 @@ if __name__ == '__main__':
   for model_name in model_names:
     uniprot_tsvs[model_name] = uniprot_tsvs.apply(lambda x: get_abstract_mean_vec(x['abstract'], model_name), axis=1)
     uniprot_tsvs['dist'+model_name] = uniprot_tsvs.apply(lambda x: np.linalg.norm(x[model_name] - mean_vecs_list[model_names.index(model_name)]), axis=1)
+    #tmpdf['cossim_'+model_name] = tmpdf.apply(lambda x: x[model_name].dot(mean_vecs_list[model_names.index(model_name)])/(np.linalg.norm(x[model_name], axis=1) * np.linalg.norm(mean_vecs_list[model_names.index(model_name)])))
     #all_tensors.append(get_abstracts_mean_vec(model_name))
   #for model_name in model_names:
   #  all_tensors.append(get_abstracts_sum_vec(abstracts, model_name)/len(abstracts))
@@ -146,6 +174,7 @@ if __name__ == '__main__':
   #print(uniprot_tsvs)
   uniprot_tsvs[['pmid', 'fasttext', 'biowordvec', 'bert', 'biobert']].to_csv(sys.argv[1]+'.vecs', sep="\t")
   uniprot_tsvs[['pmid', 'distfasttext', 'distbiowordvec', 'distbert', 'distbiobert']].to_csv(sys.argv[1]+'.dists', sep="\t", header=False, index=False)
+  #tmpdf[['pmid', 'cossim_fasttext', 'cossim_biowordvec', 'cossim_bert', 'cossim_biobert']].to_csv('/home/projects/ku_10024/people/zelili/berter/data/vecs/'+inputf+'.cossim', sep="\t", header=False, index=False)
   #with open("/home/projects/ku_10024/people/zelili/berter/test_vecs_out.csv", "w", newline="") as f:
   #  writer = csv.writer(f)
   #  writer.writerows(all_tensors)

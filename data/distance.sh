@@ -7,16 +7,16 @@
 for i in $(cat vecs_filelist.txt); do
 j=`echo $i | awk -F '_' '{print $NF}' | sed -e 's/.vecs//g'`
 echo "#!/bin/bash
-#PBS -N vec_${j}
-#PBS -e vec_${j}.err
-#PBS -o vec_${j}.out
-#PBS -l nodes=1:ppn=8
-#PBS -l mem=80gb
+#PBS -N veccos_${j}
+#PBS -e logs/veccos_${j}.err
+#PBS -o logs/veccos_${j}.out
+#PBS -l nodes=1:ppn=4
+#PBS -l mem=32gb
 #PBS -l walltime=48:00:00
 
 source activate phyluce-1.7.1
 cd /home/projects/ku_10024/people/zelili/berter/data
-python vectorizer.py ${i}
+python distance.py abstracts_${j}
 " > /home/projects/ku_10024/people/zelili/berter/data/tmp.sh
 qsub /home/projects/ku_10024/people/zelili/berter/data/tmp.sh
 done
